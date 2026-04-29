@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>F1 Championship — Apresentação do Projeto</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', sans-serif; background: #0f0f0f; color: #fff; padding: 2rem; }
+  h1 { font-size: 26px; font-weight: 700; color: #E60000; margin-bottom: 4px; }
+  .subtitle { font-size: 14px; color: #888; margin-bottom: 2rem; }
+  .section { margin-bottom: 16px; border-radius: 10px; overflow: hidden; border: 1px solid #222; }
+  .section-header {
+    display: flex; align-items: center; gap: 12px;
+    background: #E60000; color: #fff;
+    padding: 14px 20px; font-size: 15px; font-weight: 600;
+    cursor: pointer; user-select: none;
+  }
+  .section-header:hover { background: #cc0000; }
+  .toggle { margin-left: auto; font-size: 20px; line-height: 1; }
+  .section-body { display: none; padding: 20px; background: #161616; gap: 14px; flex-direction: column; }
+  .section-body.open { display: flex; }
+  .row { display: flex; gap: 14px; flex-wrap: wrap; }
+  .card {
+    background: #1e1e1e; border: 1px solid #2a2a2a;
+    border-radius: 8px; padding: 16px; flex: 1; min-width: 220px;
+  }
+  .card-label {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.08em;
+    color: #888; text-transform: uppercase; margin-bottom: 8px;
+  }
+  .action { font-size: 14px; font-weight: 600; color: #fff; margin-bottom: 6px; }
+  .desc { font-size: 13px; color: #aaa; line-height: 1.65; margin-bottom: 10px; }
+  .code {
+    background: #111; border: 1px solid #2a2a2a; border-radius: 6px;
+    padding: 12px 14px; font-family: 'Courier New', monospace;
+    font-size: 12px; color: #e8e8e8; white-space: pre-wrap; line-height: 1.6;
+  }
+  .tags { margin-bottom: 8px; }
+  .tag {
+    display: inline-block; font-size: 10px; font-weight: 700;
+    padding: 3px 9px; border-radius: 99px; margin-right: 5px;
+    letter-spacing: 0.05em;
+  }
+  .sql  { background: #0c447c; color: #85b7eb; }
+  .py   { background: #27500a; color: #97c459; }
+  .ui   { background: #633806; color: #ef9f27; }
+  .hr { border: none; border-top: 1px solid #2a2a2a; margin: 12px 0; }
+</style>
+</head>
+<body>
+
+<h1>🏎️ F1 Championship Manager</h1>
+<p class="subtitle">Apresentação técnica — banco de dados + aplicativo Python/PyQt6</p>
+
+<!-- 1 -->
+<div class="section">
+  <div class="section-header" onclick="toggle(this)">
+    1. Banco de dados — estrutura das tabelas
+    <span class="toggle">+</span>
+  </div>
+  <div class="section-body">
+    <div class="row">
+      <div class="card">
+        <div class="card-label">Tabelas do banco</div>
+        <div class="desc">O banco tem <strong>11 tabelas</strong> organizadas em camadas: cadastros base, temporada, resultados e relatórios consolidados.</div>
+        <div class="code">pilotos, construtores, circuitos, curvas
+grandes_premios, carros
+piloto_carro_temporada
+resultados_corrida, tempos_volta, tempos_curva
+campeonato_pilotos, campeonato_construtores
+consolidado_piloto_gp, log_auditoria</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Relacionamentos (FOREIGN KEY)</div>
+        <div class="desc">As tabelas se conversam através de chaves estrangeiras — garantindo que não existe resultado sem piloto, GP ou carro cadastrado.</div>
+        <div class="code">resultados_corrida
+  → pilotos     (id_piloto)
+  → grandes_premios (id_gp)
+  → carros      (id_carro)
+
+grandes_premios
+  → circuitos   (id_circuito)
+
+carros
+  → construtores (id_construtor)</div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="card">
+        <div class="card-label">TINYINT UNSIGNED</div>
+        <div class="action">Inteiro pequeno e positivo</div>
+        <div class="desc">Usado em número de curvas, voltas e número do piloto. O UNSIGNED remove os valores negativos, deixando 0 a 255.</div>
+        <div class="code">numero_curva TINYINT UNSIGNED NOT NULL
+voltas_completas TINYINT UNSIGNED</div>
+      </div>
+      <div class="card">
+        <div class="card-label">DECIMAL(5,2)</div>
+        <div class="action">Pontos sem erro de arredondamento</div>
+        <div class="desc">Pontuação armazenada com precisão exata. DECIMAL é melhor que FLOAT para dinheiro/pontos porque não acumula erro.</div>
+        <div class="code">pontos_brutos DECIMAL(5,2) DEFAULT '0.00'
+-- ex: 25.00, 18.00, 15.00...</div>
+      </div>
+      <div class="card">
+        <div class="card-label">ENUM</div>
+        <div class="action">Lista fechada de opções</div>
+        <div class="desc">Restringe o campo a valores específicos. O banco rejeita qualquer coisa fora da lista — garante integridade dos dados.</div>
+        <div class="code">status ENUM('agendado','realizado','cancelado')
+status_piloto ENUM('finalizado','DNF','DNS','DSQ')
+tipo ENUM('lenta','media','rapida')</div>
+      </div>
+      <div class="card">
+        <div class="card-label">TIME(3)</div>
+        <div class="action">Tempo com milissegundos</div>
+        <div class="desc">Guarda horas:minutos:segundos.milissegundos — essencial para tempos de volta e corrida na F1.</div>
+        <div class="code">tempo_total TIME(3)
+-- ex: '01:31:44.742'
+recorde_volta TIME(3)
+-- ex: '01:27:38.241'</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 2 -->
+<div class="section">
+  <div class="section-header" onclick="toggle(this)">
+    2. Aba Classificação — como funciona
+    <span class="toggle">+</span>
+  </div>
+  <div class="section-body">
+    <div class="card">
+      <div class="card-label">O que a aba faz</div>
+      <div class="desc">Mostra a tabela de classificação dos pilotos da temporada 2024 com posição, equipe, corridas disputadas, vitórias, pódios, voltas rápidas e pontos totais.</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Botão "Atualizar Classificação" → atualizar_classificacao()</div>
+      <div class="tags"><span class="tag sql">SQL</span><span class="tag py">Python</span></div>
+      <div class="desc">Executa uma query com JOIN em 5 tabelas. Usa COUNT, SUM e CASE WHEN para calcular todas as estatísticas ao vivo diretamente do banco — sem precisar salvar nada em memória.</div>
+      <div class="code">SELECT
+  CONCAT(p.nome, ' ', p.sobrenome) AS piloto,
+  c.nome AS equipe,
+  COUNT(rc.id_resultado) AS corridas,
+  SUM(CASE WHEN rc.posicao_final = 1 THEN 1 ELSE 0 END) AS vitorias,
+  SUM(CASE WHEN rc.posicao_final <= 3 THEN 1 ELSE 0 END) AS podios,
+  SUM(CASE WHEN rc.volta_mais_rapida = TRUE THEN 1 ELSE 0 END) AS vr,
+  ROUND(SUM(COALESCE(rc.pontos_brutos, 0)), 2) AS pts
+FROM pilotos p
+JOIN piloto_carro_temporada pct ON pct.id_piloto = p.id_piloto
+JOIN carros ca ON ca.id_carro = pct.id_carro
+JOIN construtores c ON c.id_construtor = ca.id_construtor
+LEFT JOIN resultados_corrida rc ON rc.id_piloto = p.id_piloto
+GROUP BY p.id_piloto
+ORDER BY pts DESC, vitorias DESC</div>
+      <div class="hr"></div>
+      <div class="desc">No Python, o resultado popula a QTableWidget linha a linha com setItem():</div>
+      <div class="code">self.table_classificacao.setRowCount(len(resultados))
+for row_idx, row in enumerate(resultados):
+    for col_idx, value in enumerate(row.values()):
+        item = QTableWidgetItem(str(value))
+        item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.table_classificacao.setItem(row_idx, col_idx, item)</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Botão "Inicializar Dados" → inicializar_dados_temporada()</div>
+      <div class="tags"><span class="tag sql">SQL</span><span class="tag py">Python</span></div>
+      <div class="desc">Chama a stored procedure sp_consolidar_gp para cada um dos 5 GPs. A procedure processa os resultados brutos e popula as tabelas de campeonato.</div>
+      <div class="code">for gp_id in [1, 2, 3, 4, 5]:
+    self.db.execute(f"CALL sp_consolidar_gp({gp_id})")</div>
+    </div>
+  </div>
+</div>
+
+<!-- 3 -->
+<div class="section">
+  <div class="section-header" onclick="toggle(this)">
+    3. Aba Registrar Resultado — como funciona
+    <span class="toggle">+</span>
+  </div>
+  <div class="section-body">
+    <div class="card">
+      <div class="card-label">O que a aba faz</div>
+      <div class="desc">Permite registrar um novo resultado de corrida através de um formulário em uma janela separada (QDialog). Após o registro, a classificação é atualizada automaticamente.</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Botão "Abrir Formulário" → abrir_dialog_resultado()</div>
+      <div class="tags"><span class="tag py">Python</span><span class="tag ui">UI</span></div>
+      <div class="desc">Abre o ResultadoDialog como janela modal. Se o usuário confirmar (DialogCode.Accepted), o app salva e recarrega a classificação automaticamente.</div>
+      <div class="code">dialog = ResultadoDialog(self.db)
+if dialog.exec() == QDialog.DialogCode.Accepted:
+    QMessageBox.information(self, "Sucesso", "Resultado registrado!")
+    self.atualizar_classificacao()  # atualiza automaticamente</div>
+      <div class="hr"></div>
+      <div class="desc">O banco protege contra duplicatas com UNIQUE KEY — impossível registrar o mesmo piloto duas vezes no mesmo GP:</div>
+      <div class="code">-- Na tabela resultados_corrida:
+UNIQUE KEY uq_resultado_piloto_gp (id_gp, id_piloto)</div>
+    </div>
+  </div>
+</div>
+
+<!-- 4 -->
+<div class="section">
+  <div class="section-header" onclick="toggle(this)">
+    4. Aba Relatórios — exportação de dados
+    <span class="toggle">+</span>
+  </div>
+  <div class="section-body">
+    <div class="row">
+      <div class="card">
+        <div class="card-label">Botão "Exportar para Excel" → export_excel()</div>
+        <div class="tags"><span class="tag py">Python</span><span class="tag ui">pandas</span></div>
+        <div class="desc">Lê a view campeonato_pilotos do banco, converte para um DataFrame do pandas e salva como arquivo .xlsx.</div>
+        <div class="code">query = """SELECT * FROM campeonato_pilotos
+           WHERE temporada = 2024
+           ORDER BY posicao_campeonato"""
+data = self.db.execute(query)
+df = pd.DataFrame(data)
+df.to_excel("classificacao_f1_2024.xlsx", index=False)</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Botão "Exportar para PDF"</div>
+        <div class="tags"><span class="tag py">Python</span></div>
+        <div class="desc">Funcionalidade marcada como a ser implementada. Atualmente exibe apenas uma mensagem informando que está em desenvolvimento — boa prática de deixar o espaço reservado.</div>
+        <div class="code">def export_pdf(self):
+    QMessageBox.information(self, "Info",
+      "Exportação para PDF será implementada em breve.")</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 5 -->
+<div class="section">
+  <div class="section-header" onclick="toggle(this)">
+    5. Aba Gráficos — visualização de dados
+    <span class="toggle">+</span>
+  </div>
+  <div class="section-body">
+    <div class="card">
+      <div class="card-label">Botão "Gerar Gráfico" → mostrar_grafico()</div>
+      <div class="tags"><span class="tag py">Python</span><span class="tag ui">matplotlib</span></div>
+      <div class="desc">Usa o módulo F1Plot para gerar um gráfico de evolução de pontos ao longo dos GPs. O gráfico é embutido dentro da aba com FigureCanvasQTAgg — que integra o matplotlib diretamente na janela PyQt6 como se fosse um widget normal.</div>
+      <div class="code">fig = F1Plot.plot_evolucao_pontos(self.db)
+if fig:
+    self.canvas = FigureCanvasQTAgg(fig)
+    self.tabs.currentWidget().layout().addWidget(self.canvas)</div>
+    </div>
+  </div>
+</div>
+
+<!-- 6 -->
+<div class="section">
+  <div class="section-header" onclick="toggle(this)">
+    6. Infraestrutura — o que sustenta o app
+    <span class="toggle">+</span>
+  </div>
+  <div class="section-body">
+    <div class="row">
+      <div class="card">
+        <div class="card-label">Conexão com o banco — classe Database</div>
+        <div class="tags"><span class="tag py">Python</span></div>
+        <div class="desc">O app usa uma classe Database separada para conectar ao MySQL. Se a conexão falhar na inicialização, o app encerra com mensagem de erro antes de qualquer coisa.</div>
+        <div class="code">self.db = Database()
+if not self.db.connect():
+    QMessageBox.critical(self, "Erro",
+        "Não foi possível conectar ao banco de dados!")
+    sys.exit(1)</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Interface — PyQt6 com abas</div>
+        <div class="tags"><span class="tag ui">UI</span></div>
+        <div class="desc">A janela é um QMainWindow com um QTabWidget organizando as 4 funcionalidades. O tema escuro vermelho/preto é aplicado via setStyleSheet().</div>
+        <div class="code">self.tabs = QTabWidget()
+self.tabs.addTab(create_classificacao_tab(), "Classificação")
+self.tabs.addTab(create_registrar_tab(),    "Registrar")
+self.tabs.addTab(create_relatorios_tab(),   "Relatórios")
+self.tabs.addTab(create_graficos_tab(),     "Gráficos")</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-label">log_auditoria — tabela de auditoria automática</div>
+      <div class="tags"><span class="tag sql">SQL</span></div>
+      <div class="desc">O banco registra automaticamente cada operação de INSERT, UPDATE ou DELETE com timestamp e o usuário MySQL que executou. O campo usuario usa DEFAULT (user()) — função nativa do MySQL que captura o usuário logado sem precisar passar nada.</div>
+      <div class="code">CREATE TABLE log_auditoria (
+  operacao    ENUM('INSERT','UPDATE','DELETE'),
+  tabela      VARCHAR(60),
+  id_registro INT,
+  descricao   TEXT,
+  usuario     VARCHAR(100) DEFAULT (user()),   -- captura automática
+  ts          TIMESTAMP DEFAULT CURRENT_TIMESTAMP  -- data/hora automática
+)</div>
+    </div>
+  </div>
+</div>
+
+<script>
+function toggle(header) {
+  const body = header.nextElementSibling;
+  const icon = header.querySelector('.toggle');
+  const isOpen = body.classList.contains('open');
+  body.classList.toggle('open', !isOpen);
+  icon.textContent = isOpen ? '+' : '−';
+}
+</script>
+</body>
+</html>
